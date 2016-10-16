@@ -1,0 +1,3 @@
+[submodule "elmodosgoogletts"]
+	path = elmodosgoogletts
+	url = https://github.com/elmodos/google-tts
