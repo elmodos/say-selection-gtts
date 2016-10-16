@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 
+import sys
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 from PyQt4.QtGui import QCursor
 from PyQt4.QtGui import QPushButton
-from PyQt4.QtCore import pyqtSlot, SIGNAL, SLOT, QThread
-import sys
+from PyQt4.QtCore import pyqtSlot, SIGNAL, SLOT
 from babel import Locale
 from subprocess import check_output
 
-import google_say
+# subdir
+from elmodosgoogletts import google_say
 
 
 class LanguagesMenu(QtGui.QMenu):
@@ -37,30 +38,39 @@ class SpeakerThread(QtCore.QThread):
         super(SpeakerThread, self).__init__()
         self.text = text
         self.language = language
+        self.signal_cheech_finished = QtCore.SIGNAL("signal")
 
     def run(self):
         google_say.start_speaking(self.text, self.language)
-        # while True:
-        #     print("background thread")
-        #     self.sleep(1)
+        self.emit(self.signal_cheech_finished)
 
 
 class MainWindow(QtGui.QWidget):
     def __init__(self, text, language):
         super(MainWindow, self).__init__()
 
+        # storing values for future use
         self.text = text
         self.language = language
         self.thread = None
 
+        # converting language codes into display names like "en" to "English"
         language_name = Locale(self.language).display_name.capitalize()
+
         self.setWindowTitle(language_name)
 
+        # horizontal layout
         layout = QtGui.QHBoxLayout()
+
+        # label
         label = QtGui.QLabel(self)
         label.setText("Speaking in '%s'" % language_name)
+
+        # button
         button = QPushButton("Stop")
         self.connect(button, SIGNAL("clicked()"), self, SLOT("__on_stop()"))
+
+        # show up
         layout.addWidget(label)
         layout.addWidget(button)
         self.setLayout(layout)
@@ -71,6 +81,7 @@ class MainWindow(QtGui.QWidget):
 
     def start_speaking(self):
         self.thread = SpeakerThread(self.text, self.language)
+        self.connect(self.thread, self.thread.signal_cheech_finished, self, SLOT("__on_speech_finished()"))
         self.thread.start()
 
     def stop_speaking(self):
@@ -82,32 +93,47 @@ class MainWindow(QtGui.QWidget):
 
     @pyqtSlot()
     def __on_stop(self):
+        # will trigger to kill reader thread
+        self.close()
+
+    @pyqtSlot()
+    def __on_speech_finished(self):
+        print("speech ended")
         self.close()
 
 
 def load_languages():
-    return ["en", "uk", "ru"]
+    # languages.list file should containd language codes in ISO 639-1
+    with open("languages.list") as f:
+        langs = f.readlines()
+    return [lang.strip("\n") for lang in langs]
 
 
 def load_selected_text():
-    output_text = check_output(["cat", "sample.txt"])
-    # output_text = check_output(["xclip", "--selection", "primary", "-out"])
+    # calling xclip to get current selected text
+    output_text = check_output(["xclip", "--selection", "primary", "-out"])
+    # output_text = check_output(["cat", "sample.txt"])
     return output_text
 
 
 def main():
+    # preliminary data
     text = load_selected_text()
-    print(text)
     languages = load_languages()
+
+    # QApplication should be instantinated before showing QMenu
     app = QtGui.QApplication(sys.argv)
+
+    # asking for language
     menu = LanguagesMenu(languages)
     language = menu.pick_language()
-    print("language after menu closed is %s" % language)
+
     if language is not None:
         main_window = MainWindow(text, language)
         main_window.show()
         sys.exit(app.exec_())
     else:
+        # menu can be dismissed with click outside or Esc key
         print("Language not selected, quitting")
 
 
