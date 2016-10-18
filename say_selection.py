@@ -19,7 +19,7 @@ class LanguagesMenu(QtGui.QMenu):
         self.language = None
         self.languages = languages
         for lang in self.languages:
-            action = self.addAction(Locale(lang).display_name.capitalize())
+            action = self.addAction(Locale(lang[0]).display_name.capitalize())
             action.language = lang
             self.connect(action, SIGNAL("triggered()"), self, SLOT("__on_language_selected()"))
 
@@ -34,24 +34,26 @@ class LanguagesMenu(QtGui.QMenu):
 
 
 class SpeakerThread(QtCore.QThread):
-    def __init__(self, text, language):
+    def __init__(self, text, language, speed):
         super(SpeakerThread, self).__init__()
         self.text = text
         self.language = language
+        self.speed = speed
         self.signal_cheech_finished = QtCore.SIGNAL("signal")
 
     def run(self):
-        google_say.start_speaking(self.text, self.language)
+        google_say.start_speaking(self.text, self.language, self.speed)
         self.emit(self.signal_cheech_finished)
 
 
 class MainWindow(QtGui.QWidget):
-    def __init__(self, text, language):
+    def __init__(self, text, language, speed):
         super(MainWindow, self).__init__()
 
         # storing values for future use
         self.text = text
         self.language = language
+        self.speed = speed
         self.thread = None
 
         # converting language codes into display names like "en" to "English"
@@ -80,7 +82,7 @@ class MainWindow(QtGui.QWidget):
         super(MainWindow, self).__del__()
 
     def start_speaking(self):
-        self.thread = SpeakerThread(self.text, self.language)
+        self.thread = SpeakerThread(self.text, self.language, self.speed)
         self.connect(self.thread, self.thread.signal_cheech_finished, self, SLOT("__on_speech_finished()"))
         self.thread.start()
 
@@ -106,7 +108,7 @@ def load_languages():
     # languages.list file should containd language codes in ISO 639-1
     with open("languages.list") as f:
         langs = f.readlines()
-    return [lang.strip("\n") for lang in langs]
+    return [lang.strip("\n").split(" ") for lang in langs]
 
 
 def load_selected_text():
@@ -129,7 +131,9 @@ def main():
     language = menu.pick_language()
 
     if language is not None:
-        main_window = MainWindow(text, language)
+        language_code = language[0]
+        speed = language[1] if len(language) >= 2 else "1.0"
+        main_window = MainWindow(text=text, language=language_code, speed=speed)
         main_window.show()
         sys.exit(app.exec_())
     else:
