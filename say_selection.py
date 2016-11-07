@@ -45,6 +45,10 @@ class SpeakerThread(QtCore.QThread):
         google_say.start_speaking(self.text, self.language, self.speed)
         self.emit(self.signal_cheech_finished)
 
+    def terminate(self):
+        google_say.stop_speaking()
+        super(SpeakerThread, self).terminate()
+
 
 class MainWindow(QtGui.QWidget):
     def __init__(self, text, language, speed):
@@ -77,9 +81,9 @@ class MainWindow(QtGui.QWidget):
         layout.addWidget(button)
         self.setLayout(layout)
 
-    def __del__(self):
+    def closeEvent(self, QCloseEvent):
         self.stop_speaking()
-        super(MainWindow, self).__del__()
+        QCloseEvent.accept()
 
     def start_speaking(self):
         self.thread = SpeakerThread(self.text, self.language, self.speed)
