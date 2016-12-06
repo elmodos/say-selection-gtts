@@ -122,6 +122,17 @@ def load_selected_text():
     return output_text
 
 
+def lock_to_single_process():
+    try:
+        import socket
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.bind("\0com.github.say-selection-gtts")
+        return s
+    except socket.error:
+        print("Another instance appears to be running")
+        return None
+
+
 def main():
     # preliminary data
     text = load_selected_text()
@@ -146,4 +157,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    s = lock_to_single_process()
+    if s is not None:
+        main()
+    s.close()
